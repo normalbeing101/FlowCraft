@@ -1,0 +1,55 @@
+# Sample AI workflow that runs on a fresh install with ZERO external accounts:
+# it uses the built-in deterministic `mock` provider profile.
+# Swap `provider: mock` for any configured profile to use a real model.
+schema_version: "1"
+id: sample-classify
+metadata:
+  name: Sample text classification (offline mock provider)
+  version: 1
+  tags: [sample, ai]
+limits: { max_steps_executed: 10, max_run_seconds: 120 }
+entry: classify
+steps:
+  - id: classify
+    type: ai.generate
+    input:
+      system: "Classify the text. Reply with JSON {\"verdict\": \"spam|ok\", \"confidence\": number}."
+      prompt: "Text to classify: ${run.inputs.text}"
+    output_to: classified
+    retry: { max_attempts: 2, backoff_seconds: 0.1 }
+    config:
+      provider: mock
+      output_schema:
+        type: object
+        required: [verdict]
+        properties:
+          verdict: { type: string, enum: [spam, ok] }
+          confidence: { type: number }
+  - id: branch
+    type: data.transform
+    when:
+      path: data.verdict
+      equals: spam
+    branches:
+      spam: flag
+      default: accept
+    input:
+      data: "${classified.data}"
+  - id: flag
+    type: data.transform
+    config:
+      operations:
+        - op: set_default
+          field: reason
+          value: classified-spam
+    input:
+      data: "${classified.data}"
+  - id: accept
+    type: data.transform
+    config:
+      operations:
+        - op: set_default
+          field: reason
+          value: accepted
+    input:
+      data: "${classified.data}"

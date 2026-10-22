@@ -1,0 +1,28 @@
+# Sample: guarded outbound HTTP POST behind a human approval gate.
+# Requires FLOWCRAFT_HTTP_ALLOWED_HOSTS (or public internet + default policy)
+# and an endpoint you control. Approval pauses the run until decided via
+# API/CLI — see docs/api.md.
+schema_version: "1"
+id: sample-guarded-post
+metadata:
+  name: Approved webhook post
+  version: 1
+  tags: [sample, http, approval]
+limits: { max_steps_executed: 10, max_run_seconds: 3600 }
+entry: review
+steps:
+  - id: review
+    type: approval.request
+    input:
+      summary: "POST payload to ${run.inputs.url}"
+      payload: "${run.inputs.body}"
+    approve:
+      reason: "Outbound write requires human sign-off"
+      timeout_seconds: 86400
+  - id: post
+    type: http.request
+    input:
+      url: "${run.inputs.url}"
+      method: POST
+      json_body: "${run.inputs.body}"
+    retry: { max_attempts: 3, backoff_seconds: 1 }

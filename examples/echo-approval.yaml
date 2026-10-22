@@ -1,0 +1,34 @@
+# Sample workflow — NO credentials or personal data required.
+# Uses only the built-in `data.transform` tool (pure, offline).
+schema_version: "1"
+id: sample-echo
+metadata:
+  name: Sample echo & normalize
+  description: Demonstrates sequential steps, input mapping, and transforms.
+  version: 1
+  tags: [sample]
+limits:
+  max_steps_executed: 10
+  max_run_seconds: 60
+entry: normalize
+steps:
+  - id: normalize
+    type: data.transform
+    input:
+      data: "${run.inputs.records}"
+    output_to: normalized
+    config:
+      operations:
+        - op: set_default
+          field: status
+          value: new
+        - op: lowercase
+          field: status
+  - id: summarize
+    type: data.transform
+    input:
+      data: "${normalized.result}"
+    config:
+      operations:
+        - op: pick
+          fields: [name, status]
